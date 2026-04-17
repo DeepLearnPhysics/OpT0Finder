@@ -1,5 +1,7 @@
 import os
 
+__version__ = '1.0.0'
+
 if 'FMATCH_LIBDIR' not in os.environ:
     raise ImportError('FMATCH_LIBDIR environment variable must be defined.')
 
