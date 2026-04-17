@@ -45,6 +45,7 @@ namespace flashmatch {
   public:
 
     enum QLLMode_t { kChi2, kLLHD, kSimpleLLHD, kWeightedLLHD, kIntegralLLHD, kZIP, kPEWeightedLLHD, kGStat };
+    enum Chi2Mode_t { kLegacyChi2, kObservedChi2, kPoissonDevianceChi2 };
 
   private:
     /// Valid ctor hidden (singleton)
@@ -118,10 +119,11 @@ namespace flashmatch {
     static QLLMatch* _me;
 
     QLLMode_t _mode;   ///< Minimizer mode
+    Chi2Mode_t _chi2_mode; ///< Chi2 denominator convention
     bool _record;      ///< Boolean switch to record minimizer history
     double _normalize; ///< Noramalize hypothesis PE spectrum
     double _chi_error; ///< width of an additional uncertainty to add to Chi2 method 
-    double _chi_error_min; ///< minimum poisson uncertainty on flash in PE.
+    double _chi_error_min; ///< minimum chi2 denominator/expectation in PE.
     double _chi_error_min_scaled; ///< Normalized flashes are scaled by total PE.
     bool _check_touching_track; ///< Whether to match immediately touching track with flash if timing coincides.
     double _touching_track_window; ///< Time(us) such that we use this tolerance T to find touching tracks

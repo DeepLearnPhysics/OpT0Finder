@@ -18,6 +18,14 @@ namespace flashmatch {
 
   void MIN_vtx_qll(Int_t &, Double_t *, Double_t &, Double_t *, Int_t);
 
+#if USING_LARSOFT == 0
+  static bool HasConfigValue(const Config_t& pset, const std::string& key)
+  { return pset.contains_value(key); }
+#else
+  static bool HasConfigValue(const Config_t& pset, const std::string& key)
+  { return pset.has_key(key); }
+#endif
+
   QLLMatch::QLLMatch(const std::string name)
     : BaseFlashMatch(name), _mode(kChi2), _record(false), _normalize(false), _poisson("QLLMatch_poisson","TMath::Poisson(x,y)"), _minuit_ptr(nullptr)
   { _current_llhd = _current_chi2 = _current_pe = -1.0; }
@@ -30,11 +38,17 @@ namespace flashmatch {
     _check_touching_track = pset.get<bool>("CheckTouchingTrack");
     _normalize = pset.get<bool>("NormalizeHypothesis");
     _mode   = (QLLMode_t)(pset.get<unsigned short>("QLLMode"));
+    auto default_chi2_mode = kLegacyChi2;
+    if(HasConfigValue(pset, "ChiErrorMin")) default_chi2_mode = kObservedChi2;
+    _chi2_mode = (Chi2Mode_t)(pset.get<unsigned short>("Chi2Mode", default_chi2_mode));
     _chi_error = pset.get<double>("ChiErrorWidth", 0.0);
-    _chi_error_min = pset.get<double>("ChiErrorMin", 1.0); // minimum poisson uncertainty on flash in PE. Normalized flashes are scaled by total PE.
+    auto default_chi_error_min = (_chi2_mode == kLegacyChi2 ? 0.0 : 1.0);
+    _chi_error_min = pset.get<double>("ChiErrorMin", default_chi_error_min); // minimum chi2 denominator/expectation in PE. Normalized flashes are scaled by total PE.
     _chi_error_min_scaled = _chi_error_min;
-    _pe_observation_threshold = pset.get<double>("PEObservationThreshold", 0.);
-    _pe_hypothesis_threshold  = pset.get<double>("PEHypothesisThreshold",0.);
+    double pe_threshold_default = 0.;
+    if(_mode == kChi2 && _chi2_mode == kLegacyChi2) pe_threshold_default = 1.e-6;
+    _pe_observation_threshold = pset.get<double>("PEObservationThreshold", pe_threshold_default);
+    _pe_hypothesis_threshold  = pset.get<double>("PEHypothesisThreshold", pe_threshold_default);
     _migrad_tolerance         = pset.get<double>("MIGRADTolerance", 0.1);
     _offset                   = pset.get<double>("Offset", 0.0);
 		_time_shift               = pset.get<double>("BeamTimeShift", 0.0);
@@ -80,6 +94,7 @@ namespace flashmatch {
 
     // Configuration statements
     FLASH_NORMAL() << "Mode: " << _mode << std::endl;
+    FLASH_NORMAL() << "Chi2 mode: " << _chi2_mode << std::endl;
     FLASH_NORMAL() << "PE observation threshold: " << _pe_observation_threshold << std::endl;
     FLASH_NORMAL() << "PE hypothesis threshold: " << _pe_hypothesis_threshold << std::endl;
     FLASH_NORMAL() << "Chi error width: " << _chi_error << std::endl;
@@ -457,8 +472,11 @@ namespace flashmatch {
       // Skip if the PMT is not masked (it should be used)
       if (_channel_mask[pmt_index] == 0) continue;
 
-      // Skip if the hypothesis and measurement are both 0. This means the PMT is saturated (or assumed to be saturated)
-      if (hypothesis.pe_v[pmt_index] == 0 && measurement.pe_v[pmt_index] == 0) continue;
+      // In the current convention, empty PMTs carry no chi2/likelihood
+      // information. Legacy chi2 keeps them so thresholding reproduces the
+      // historical score normalization.
+      if(!(_mode == kChi2 && _chi2_mode == kLegacyChi2) &&
+         hypothesis.pe_v[pmt_index] == 0 && measurement.pe_v[pmt_index] == 0) continue;
       
       O = measurement.pe_v[pmt_index] / integral_factor; // observation
       H = hypothesis.pe_v[pmt_index];  // hypothesis
@@ -545,10 +563,29 @@ namespace flashmatch {
       	//nvalid_pmt += 1;
 
       } else if (_mode == kChi2) {
-        Error = std::max(O, _chi_error_min_scaled);
-        double chi2 = std::pow((O - H), 2) / (Error);
-        _current_chi2 += chi2;
-        FLASH_DEBUG() <<"CH | O | H | E | chisq : "<<pmt_index<<", " << O << ", " << H << ", " << Error << ", " << chi2 << std::endl;
+        if(_chi2_mode == kLegacyChi2) {
+          Error = std::max(H, _chi_error_min_scaled) + std::pow(_chi_error * H, 2);
+          double chi2 = std::pow((O - H), 2) / Error;
+          _current_chi2 += chi2;
+          FLASH_DEBUG() <<"CH | O | H | E | chisq : "<<pmt_index<<", " << O << ", " << H << ", " << Error << ", " << chi2 << std::endl;
+        }
+        else if(_chi2_mode == kObservedChi2) {
+          Error = std::max(O, _chi_error_min_scaled);
+          double chi2 = std::pow((O - H), 2) / Error;
+          _current_chi2 += chi2;
+          FLASH_DEBUG() <<"CH | O | H | E | chisq : "<<pmt_index<<", " << O << ", " << H << ", " << Error << ", " << chi2 << std::endl;
+        }
+        else if(_chi2_mode == kPoissonDevianceChi2) {
+          H = std::max(H, _chi_error_min_scaled);
+          double chi2 = 2. * H;
+          if(O > 0.) chi2 = 2. * (H - O + O * std::log(O / H));
+          _current_chi2 += chi2;
+          FLASH_DEBUG() <<"Poisson deviance | O | H | chisq : "<<pmt_index<<", " << O << ", " << H << ", " << chi2 << std::endl;
+        }
+        else {
+          FLASH_ERROR() << "Unexpected Chi2 mode" << std::endl;
+          throw OpT0FinderException();
+        }
         nvalid_pmt += 1;
 
       } 
