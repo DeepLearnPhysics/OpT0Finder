@@ -8,6 +8,7 @@
 #include "PhotonLibrary.h"
 #include "PhotonVoxels.h"
 #include <iostream>
+#include <stdexcept>
 //#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TFile.h"
@@ -101,29 +102,39 @@ namespace phot{
     TFile *f = nullptr;
     TTree *tt = nullptr;
 
-    try
-      {
-	f  =  TFile::Open(LibraryFile.c_str());
-	if(!f) {
-	  std::cerr<<"\033[95m<<"<<__FUNCTION__<<">>\033[00m " << "Failed to open a ROOT file: " << LibraryFile.c_str()<<std::endl;
-	  std::cerr<<"If you don't have photon library data file, download from below URL..."<<std::endl;
-	  std::cerr<<"/cvmfs/icarus.opensciencegrid.org/products/icarus/icarus_data/v09_25_00/icarus_data/PhotonLibrary/PhotonLibrary-20201209.root"<<std::endl<<std::endl;
-	  throw std::exception();
-	}
-	tt =  (TTree*)f->Get("PhotonLibraryData");
-        if (!tt) { // Library not in the top directory
-            TKey *key = f->FindKeyAny("PhotonLibraryData");
-            if (key)
-                tt = (TTree*)key->ReadObj();
-            else {
-	      std::cerr << "PhotonLibraryData not found in file" <<LibraryFile<<std::endl;
-            }
-        }
+    f  =  TFile::Open(LibraryFile.c_str());
+    if(!f || f->IsZombie()) {
+      if(f) {
+        f->Close();
+        delete f;
       }
-    catch(...)
-      {
-	std::cerr << "Error in ttree load, reading photon library: " << LibraryFile.c_str()<<std::endl;
-      }
+      std::cerr<<"\033[95m<<"<<__FUNCTION__<<">>\033[00m " << "Failed to open a ROOT file: " << LibraryFile.c_str()<<std::endl;
+      std::cerr<<"If you don't have photon library data file, download from below URL..."<<std::endl;
+      std::cerr<<"/cvmfs/icarus.opensciencegrid.org/products/icarus/icarus_data/v10_06_03/icarus_data/PhotonLibrary/PhotonLibrary-20201209.root"<<std::endl<<std::endl;
+      throw std::runtime_error("Failed to open photon library file: " + LibraryFile);
+    }
+
+    tt = dynamic_cast<TTree*>(f->Get("PhotonLibraryData"));
+    if (!tt) { // Library not in the top directory
+      TKey *key = f->FindKeyAny("PhotonLibraryData");
+      if (key) tt = dynamic_cast<TTree*>(key->ReadObj());
+    }
+    if (!tt) {
+      std::cerr << "PhotonLibraryData not found in file " << LibraryFile << std::endl;
+      f->Close();
+      delete f;
+      throw std::runtime_error("PhotonLibraryData tree not found in photon library file: " + LibraryFile);
+    }
+    if (!tt->GetBranch("Voxel") ||
+        !tt->GetBranch("OpChannel") ||
+        !tt->GetBranch("Visibility")) {
+      std::cerr << "PhotonLibraryData in file " << LibraryFile
+                << " is missing one of the required branches: "
+                << "Voxel, OpChannel, Visibility" << std::endl;
+      f->Close();
+      delete f;
+      throw std::runtime_error("Invalid photon library tree in file: " + LibraryFile);
+    }
 
     Int_t     Voxel;
     Int_t     OpChannel;
@@ -149,6 +160,12 @@ namespace phot{
       tt->GetEntry(i);
 
       // Set # of optical channels to 1 more than largest one seen
+      if (Voxel < 0 || Voxel >= (int)fNVoxels || OpChannel < 0) {
+        f->Close();
+        delete f;
+        throw std::runtime_error("Photon library entry has out-of-range voxel/channel index in file: " + LibraryFile);
+      }
+
       if (OpChannel >= (int)fNOpChannels)
         fNOpChannels = OpChannel+1;
 
@@ -173,12 +190,13 @@ namespace phot{
 
     try
       {
-	f->Close();
+        f->Close();
       }
     catch(...)
       {
-	std::cerr << "Error in closing file : " << LibraryFile.c_str()<<std::endl;
+        std::cerr << "Error in closing file : " << LibraryFile.c_str()<<std::endl;
       }
+    delete f;
   }
 
   //----------------------------------------------------
