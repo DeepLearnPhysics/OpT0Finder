@@ -19,10 +19,11 @@ SUBDIRS := Base/FMWKTools GeoAlgo Base Algorithms PyUtil #
 all: obj lib
 #all: obj
 
-clean: clean_app clean_core
-	@rm -f $(FMATCH_LIBDIR)/libflashmatch.so
+clean: clean_core
+	@rm -rf $(FMATCH_BUILDDIR)
+
 clean_core:
-	@for i in $(SUBDIRS); do ( echo "" && echo "Cleaning $$i..." && cd $(FMATCH_DIR)/$$i && rm -rf $(FMATCH_BUILDDIR)/$$i && rm -rf $(FMATCH_BUILDDIR)/lib/*$ii.* ) || exit $$?; done
+	@for i in $(SUBDIRS); do ( echo "" && echo "Cleaning $$i..." && rm -f $(FMATCH_DIR)/$$i/.depend ) || exit $$?; done
 
 obj:
 	@echo
