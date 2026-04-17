@@ -4,7 +4,7 @@ import plotly.graph_objs as go
 def load_geometry_from_pset(cfg):
     import ast
     from flashmatch import flashmatch
-    pset = flashmatch.CreatePSetFromFile(cfg).get['flashmatch::PSet']('DetectorSpecs')
+    pset = flashmatch.CreateFMParamsFromFile(cfg).get['flashmatch::PSet']('DetectorSpecs')
     det = {}
     det['MinPosition'] = ast.literal_eval(pset.get['string']('PhotonLibraryVolumeMin'))
     det['MaxPosition'] = ast.literal_eval(pset.get['string']('PhotonLibraryVolumeMax'))

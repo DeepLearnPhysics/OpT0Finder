@@ -28,7 +28,7 @@ class AnalysisManager(object):
         Configure FlashMatchManager
         """
         import os
-        self.cfg = flashmatch.CreatePSetFromFile(cfg)
+        self.cfg = flashmatch.CreateFMParamsFromFile(cfg)
         self.matcher=flashmatch.FlashMatchManager()
         self.matcher.Configure(self.cfg)
         if not particleana and not opflashana:

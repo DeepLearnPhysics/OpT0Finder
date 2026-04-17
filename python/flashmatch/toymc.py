@@ -21,7 +21,7 @@ class ToyMC:
         return -1
 
     def configure(self,cfg_file):
-        self.cfg = flashmatch.CreatePSetFromFile(cfg_file)
+        self.cfg = flashmatch.CreateFMParamsFromFile(cfg_file)
         # configure
         #self.mgr.Configure(self.cfg)
         # PhotonLibHypothesis

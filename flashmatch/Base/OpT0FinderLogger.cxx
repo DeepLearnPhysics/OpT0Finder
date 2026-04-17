@@ -10,7 +10,7 @@ namespace flashmatch {
   
   std::ostream& logger::send(const msg::Level_t level) const
   {
-    (*_ostrm)  << msg::kStringPrefix[level].c_str()
+    (*_ostrm)  << msg::StringPrefix(level)
 	       << "\033[0m ";
     return (*_ostrm);
   }

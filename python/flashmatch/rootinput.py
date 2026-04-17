@@ -39,7 +39,7 @@ class ROOTInput:
         return len(self._entries_to_event)
 
     def configure(self,cfg_file):
-        self.cfg = flashmatch.CreatePSetFromFile(cfg_file)
+        self.cfg = flashmatch.CreateFMParamsFromFile(cfg_file)
         #
         # Toy MC configuration
         #

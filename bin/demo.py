@@ -71,7 +71,7 @@ def demo(cfg_file,repeat=1,num_tracks=None,out_file='',particleana=None,opflasha
     """
     # create & configure manager API
     mgr = AnalysisManager(cfg_file,particleana,opflashana)
-    cfg = flashmatch.CreatePSetFromFile(cfg_file)
+    cfg = flashmatch.CreateFMParamsFromFile(cfg_file)
     # dump config
     sys.stdout.write(mgr.dump_config())
     sys.stdout.flush()

@@ -277,15 +277,18 @@ namespace flashmatch {
       kMSG_TYPE_MAX
     };
 
-    const std::string kStringPrefix[kMSG_TYPE_MAX] =
-      {
-	"\033[94m     [DEBUG]  \033[00m", ///< DEBUG message prefix
-	"\033[92m      [INFO]  \033[00m", ///< INFO message prefix
-	"\033[95m    [NORMAL]  \033[00m", ///< NORMAL message prefix
-	"\033[93m   [WARNING]  \033[00m", ///< WARNING message prefix
-	"\033[91m     [ERROR]  \033[00m", ///< ERROR message prefix
-	"\033[5;1;33;41m [EXCEPTION]  \033[00m"  ///< CRITICAL message prefix
-      };
+    inline const char* StringPrefix(const Level_t level)
+    {
+      switch(level) {
+      case kDEBUG:    return "\033[94m     [DEBUG]  \033[00m";
+      case kINFO:     return "\033[92m      [INFO]  \033[00m";
+      case kNORMAL:   return "\033[95m    [NORMAL]  \033[00m";
+      case kWARNING:  return "\033[93m   [WARNING]  \033[00m";
+      case kERROR:    return "\033[91m     [ERROR]  \033[00m";
+      case kCRITICAL: return "\033[5;1;33;41m [EXCEPTION]  \033[00m";
+      default:        return "";
+      }
+    }
     ///< Prefix of message
   }
 }
